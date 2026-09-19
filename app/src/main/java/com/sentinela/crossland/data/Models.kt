@@ -44,7 +44,7 @@ data class VehicleProfileResult(
     val upperRoofDarkScore: Float,   // Proporção de escuridão no tejadilho/pilares (0.0 a 1.0)
     val lowerBodyGreyScore: Float,   // Proporção de cinzento claro na carroçaria (0.0 a 1.0)
     val overallMatchScore: Float     // Pontuação composta (0.0 a 1.0)
-)
+) : Serializable
 
 /**
  * Resultado do reconhecimento ótico de caracteres (OCR) da matrícula.
@@ -55,7 +55,7 @@ data class LicensePlateResult(
     val isExactTarget: Boolean,      // Verdadeiro se for exatamente "28-VE-91"
     val isCloseCandidate: Boolean,   // Verdadeiro se for candidato com alta semelhança Levenshtein
     val confidence: Float
-)
+) : Serializable
 
 /**
  * Evento consolidado emitido pelo pipeline quando o veículo-alvo é detetado.

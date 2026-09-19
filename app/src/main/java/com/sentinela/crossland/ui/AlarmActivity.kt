@@ -78,12 +78,17 @@ class AlarmActivity : ComponentActivity() {
 
         configureScreenWakeAndKeyguard()
 
-        val event = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getSerializableExtra(EXTRA_DETECTION_EVENT, TargetDetectionEvent::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            intent.getSerializableExtra(EXTRA_DETECTION_EVENT) as? TargetDetectionEvent
-        }
+        val event = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getSerializableExtra(EXTRA_DETECTION_EVENT, TargetDetectionEvent::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getSerializableExtra(EXTRA_DETECTION_EVENT) as? TargetDetectionEvent
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        } ?: alarmController.currentEvent.value
 
         setContent {
             SentinelaTheme {
@@ -99,19 +104,20 @@ class AlarmActivity : ComponentActivity() {
     }
 
     private fun configureScreenWakeAndKeyguard() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true)
-            setTurnScreenOn(true)
-            val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-            keyguardManager.requestDismissKeyguard(this, null)
-        } else {
-            @Suppress("DEPRECATION")
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                setShowWhenLocked(true)
+                setTurnScreenOn(true)
+                val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                keyguardManager?.requestDismissKeyguard(this, null)
+            }
             window.addFlags(
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
                         WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                        WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
             )
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 

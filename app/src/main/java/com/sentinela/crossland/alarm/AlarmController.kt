@@ -76,15 +76,32 @@ class AlarmController private constructor(private val context: Context) {
 
         // 4. Inicia vibração insistente
         startVibration()
+
+        // 5. Inicia diretamente a AlarmActivity para visualização imediata
+        try {
+            val alarmIntent = android.content.Intent(context, com.sentinela.crossland.ui.AlarmActivity::class.java).apply {
+                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                        android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra(com.sentinela.crossland.ui.AlarmActivity.EXTRA_DETECTION_EVENT, event)
+            }
+            context.startActivity(alarmIntent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun playAlarmAudio() {
         try {
             stopAudio()
 
-            // Define volume no máximo do stream de alarme
-            val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, maxVolume, 0)
+            // Tenta definir volume máximo de forma segura
+            try {
+                val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+                audioManager.setStreamVolume(AudioManager.STREAM_ALARM, maxVolume, 0)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
 
             val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
@@ -135,35 +152,66 @@ class AlarmController private constructor(private val context: Context) {
     }
 
     private fun stopAudio() {
-        mediaPlayer?.let {
-            if (it.isPlaying) {
-                it.stop()
+        try {
+            mediaPlayer?.let {
+                if (it.isPlaying) {
+                    it.stop()
+                }
+                it.release()
             }
-            it.release()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            mediaPlayer = null
         }
-        mediaPlayer = null
     }
 
     private fun stopVibration() {
-        vibrator?.cancel()
+        try {
+            vibrator?.cancel()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun acquireAlarmWakeLock() {
-        if (alarmWakeLock == null) {
-            @Suppress("DEPRECATION")
-            alarmWakeLock = powerManager.newWakeLock(
-                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
-                "sentinela:critical_alarm_wakelock"
-            )
-        }
-        if (alarmWakeLock?.isHeld == false) {
-            alarmWakeLock?.acquire(60_000L) // Timeout máximo de segurança de 60s
+        try {
+            if (alarmWakeLock == null) {
+                @Suppress("DEPRECATION")
+                alarmWakeLock = powerManager.newWakeLock(
+                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                    "sentinela:critical_alarm_wakelock"
+                )
+            }
+            if (alarmWakeLock?.isHeld == false) {
+                alarmWakeLock?.acquire(60_000L) // Timeout máximo de segurança de 60s
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Fallback seguro caso flags de screen bright falhem em certos aparelhos
+            try {
+                if (alarmWakeLock == null) {
+                    alarmWakeLock = powerManager.newWakeLock(
+                        PowerManager.PARTIAL_WAKE_LOCK,
+                        "sentinela:critical_alarm_partial_wakelock"
+                    )
+                }
+                if (alarmWakeLock?.isHeld == false) {
+                    alarmWakeLock?.acquire(60_000L)
+                }
+            } catch (ex: Exception) {
+                ex.printStackTrace()
+            }
         }
     }
 
     private fun releaseAlarmWakeLock() {
-        if (alarmWakeLock?.isHeld == true) {
-            alarmWakeLock?.release()
+        try {
+            if (alarmWakeLock?.isHeld == true) {
+                alarmWakeLock?.release()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }

@@ -66,8 +66,14 @@ class NotificationHelper(private val context: Context) {
                 vibrationPattern = longArrayOf(0, 800, 300, 800, 300)
                 setSound(alarmSound, audioAttributes)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    setBypassDnd(true)
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        if (notificationManager.isNotificationPolicyAccessGranted) {
+                            setBypassDnd(true)
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
             notificationManager.createNotificationChannel(alarmChannel)
@@ -101,34 +107,38 @@ class NotificationHelper(private val context: Context) {
      * Dispara a notificação de chamada em ecrã inteiro (FullScreenIntent).
      */
     fun showCriticalAlarmNotification(event: TargetDetectionEvent) {
-        val alarmIntent = Intent(context, AlarmActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra(AlarmActivity.EXTRA_DETECTION_EVENT, event)
+        try {
+            val alarmIntent = Intent(context, AlarmActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra(AlarmActivity.EXTRA_DETECTION_EVENT, event)
+            }
+
+            val fullScreenPendingIntent = PendingIntent.getActivity(
+                context,
+                NOTIFICATION_ALARM_ID,
+                alarmIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val notification = NotificationCompat.Builder(context, CHANNEL_ALARM_ID)
+                .setSmallIcon(R.drawable.ic_alarm_alert)
+                .setContentTitle(context.getString(R.string.alarm_title))
+                .setContentText("Matrícula: 28-VE-91 | Perfil Bicolor Confirmado")
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setFullScreenIntent(fullScreenPendingIntent, true)
+                .setContentIntent(fullScreenPendingIntent)
+                .setAutoCancel(true)
+                .setOngoing(true)
+                .build()
+
+            notificationManager.notify(NOTIFICATION_ALARM_ID, notification)
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-
-        val fullScreenPendingIntent = PendingIntent.getActivity(
-            context,
-            NOTIFICATION_ALARM_ID,
-            alarmIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notification = NotificationCompat.Builder(context, CHANNEL_ALARM_ID)
-            .setSmallIcon(R.drawable.ic_alarm_alert)
-            .setContentTitle(context.getString(R.string.alarm_title))
-            .setContentText("Matrícula: 28-VE-91 | Perfil Bicolor Confirmado")
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_CALL)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setFullScreenIntent(fullScreenPendingIntent, true)
-            .setContentIntent(fullScreenPendingIntent)
-            .setAutoCancel(true)
-            .setOngoing(true)
-            .build()
-
-        notificationManager.notify(NOTIFICATION_ALARM_ID, notification)
     }
 
     fun cancelAlarmNotification() {

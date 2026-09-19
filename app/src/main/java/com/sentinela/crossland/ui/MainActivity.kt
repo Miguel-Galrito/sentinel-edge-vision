@@ -206,25 +206,30 @@ fun MainScreen(
                         }
                     },
                     onTestAlarm = {
-                        val testEvent = TargetDetectionEvent(
-                            timestamp = System.currentTimeMillis(),
-                            plateResult = LicensePlateResult(
-                                detectedText = "28-VE-91 (TESTE)",
-                                normalizedText = "28-VE-91",
-                                isExactTarget = true,
-                                isCloseCandidate = true,
-                                confidence = 1.0f
-                            ),
-                            profileResult = VehicleProfileResult(
-                                isBicolorCandidate = true,
-                                upperRoofDarkScore = 0.85f,
-                                lowerBodyGreyScore = 0.80f,
-                                overallMatchScore = 0.88f
-                            ),
-                            snapshotFilePath = null,
-                            isHighPriorityAlarm = true
-                        )
-                        AlarmController.getInstance(context).triggerAlarm(testEvent)
+                        try {
+                            val testEvent = TargetDetectionEvent(
+                                timestamp = System.currentTimeMillis(),
+                                plateResult = LicensePlateResult(
+                                    detectedText = "28-VE-91 (TESTE)",
+                                    normalizedText = "28-VE-91",
+                                    isExactTarget = true,
+                                    isCloseCandidate = true,
+                                    confidence = 1.0f
+                                ),
+                                profileResult = VehicleProfileResult(
+                                    isBicolorCandidate = true,
+                                    upperRoofDarkScore = 0.85f,
+                                    lowerBodyGreyScore = 0.80f,
+                                    overallMatchScore = 0.88f
+                                ),
+                                snapshotFilePath = null,
+                                isHighPriorityAlarm = true
+                            )
+                            AlarmController.getInstance(context).triggerAlarm(testEvent)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            Toast.makeText(context, "Erro no teste: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                        }
                     }
                 )
             }

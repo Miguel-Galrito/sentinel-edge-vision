@@ -1,0 +1,22 @@
+[
+    {
+        "merged": "com.sentinela.crossland.app-debug-61:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.sentinela.crossland.app-main-63:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "com.sentinela.crossland.app-debug-61:/drawable_ic_alarm_alert.xml.flat",
+        "source": "com.sentinela.crossland.app-main-63:/drawable/ic_alarm_alert.xml"
+    },
+    {
+        "merged": "com.sentinela.crossland.app-debug-61:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.sentinela.crossland.app-main-63:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "com.sentinela.crossland.app-debug-61:/drawable_ic_camera_service.xml.flat",
+        "source": "com.sentinela.crossland.app-main-63:/drawable/ic_camera_service.xml"
+    },
+    {
+        "merged": "com.sentinela.crossland.app-debug-61:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "com.sentinela.crossland.app-main-63:/mipmap-anydpi-v26/ic_launcher_round.xml"
+    }
+]
