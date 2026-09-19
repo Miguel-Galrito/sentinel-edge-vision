@@ -64,10 +64,12 @@ class VehicleProfileAnalyzer {
         val bodyBottom = roiTop + (roiHeight * 0.85f).toInt()
 
         var roofPixelCount = 0
+        var roofTotalY = 0L
         var roofDarkPixelCount = 0
         var roofNeutralColorCount = 0
 
         var bodyPixelCount = 0
+        var bodyTotalY = 0L
         var bodyGreyPixelCount = 0
         var bodyNeutralColorCount = 0
 
@@ -89,15 +91,15 @@ class VehicleProfileAnalyzer {
                     val vVal = vBuffer.get(uvIndex).toInt() and 0xFF
 
                     roofPixelCount++
+                    roofTotalY += yVal
 
-                    // Preto: Luminância baixa (< 80)
-                    if (yVal < 80) {
+                    if (yVal < 90) {
                         roofDarkPixelCount++
                     }
 
                     // Neutro (baixa saturação cromática: U e V próximos de 128)
                     val chromaDist = abs(uVal - 128) + abs(vVal - 128)
-                    if (chromaDist < 35) {
+                    if (chromaDist < 40) {
                         roofNeutralColorCount++
                     }
                 }
@@ -118,20 +120,23 @@ class VehicleProfileAnalyzer {
                     val vVal = vBuffer.get(uvIndex).toInt() and 0xFF
 
                     bodyPixelCount++
+                    bodyTotalY += yVal
 
-                    // Cinzento claro: Luminância média-alta (entre 100 e 215)
-                    if (yVal in 100..215) {
+                    // Cinzento claro (de dia: > 90; de noite: basta ser mais claro que o tejadilho)
+                    if (yVal in 70..230) {
                         bodyGreyPixelCount++
                     }
 
-                    // Cor neutra (sem tons saturados)
                     val chromaDist = abs(uVal - 128) + abs(vVal - 128)
-                    if (chromaDist < 35) {
+                    if (chromaDist < 40) {
                         bodyNeutralColorCount++
                     }
                 }
             }
         }
+
+        val roofAvgY = if (roofPixelCount > 0) roofTotalY.toFloat() / roofPixelCount else 0f
+        val bodyAvgY = if (bodyPixelCount > 0) bodyTotalY.toFloat() / bodyPixelCount else 0f
 
         val roofDarkRatio = if (roofPixelCount > 0) roofDarkPixelCount.toFloat() / roofPixelCount else 0f
         val roofNeutralRatio = if (roofPixelCount > 0) roofNeutralColorCount.toFloat() / roofPixelCount else 0f
@@ -139,16 +144,23 @@ class VehicleProfileAnalyzer {
         val bodyGreyRatio = if (bodyPixelCount > 0) bodyGreyPixelCount.toFloat() / bodyPixelCount else 0f
         val bodyNeutralRatio = if (bodyPixelCount > 0) bodyNeutralColorCount.toFloat() / bodyPixelCount else 0f
 
-        val upperRoofScore = (roofDarkRatio * 0.7f + roofNeutralRatio * 0.3f)
-        val lowerBodyScore = (bodyGreyRatio * 0.7f + bodyNeutralRatio * 0.3f)
+        val isNightScene = bodyAvgY < 80f
 
-        // Contraste característico: Zona superior significativamente mais escura que zona inferior
-        val contrastDelta = (bodyGreyRatio - (1f - roofDarkRatio)).coerceAtLeast(0f)
+        // Em cena noturna: analisa contraste relativo (corpo reflete mais luz pública que o tejadilho preto)
+        val relativeContrastValid = if (isNightScene) {
+            (bodyAvgY > roofAvgY * 1.12f) || (bodyAvgY - roofAvgY > 6f)
+        } else {
+            (bodyAvgY > roofAvgY * 1.25f) || (bodyAvgY - roofAvgY > 15f)
+        }
 
-        val overallScore = ((upperRoofScore * 0.45f) + (lowerBodyScore * 0.45f) + (contrastDelta * 0.1f)).coerceIn(0f, 1f)
+        val upperRoofScore = (roofDarkRatio * 0.6f + roofNeutralRatio * 0.4f).coerceIn(0f, 1f)
+        val lowerBodyScore = (bodyGreyRatio * 0.6f + bodyNeutralRatio * 0.4f).coerceIn(0f, 1f)
 
-        // Candidato válido se tejadilho escuro > 35% e corpo cinzento > 35%
-        val isCandidate = roofDarkRatio >= 0.35f && bodyGreyRatio >= 0.35f && overallScore >= 0.45f
+        val contrastScore = if (relativeContrastValid) 0.85f else 0.2f
+        val overallScore = ((upperRoofScore * 0.35f) + (lowerBodyScore * 0.35f) + (contrastScore * 0.3f)).coerceIn(0f, 1f)
+
+        // Candidato válido se contraste relativo for respeitado e pontuação composta for suficiente
+        val isCandidate = relativeContrastValid && overallScore >= 0.42f
 
         return VehicleProfileResult(
             isBicolorCandidate = isCandidate,

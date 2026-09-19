@@ -35,6 +35,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.FlashOff
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
@@ -140,6 +142,7 @@ fun MainScreen(
 
     val isServiceRunning by CameraService.isServiceRunning.collectAsState()
     val metrics by CameraService.metrics.collectAsState()
+    val isTorchActive by CameraService.isTorchActive.collectAsState()
 
     var roi by remember { mutableStateOf(preferences.roi) }
     var isRoiEditMode by remember { mutableStateOf(false) }
@@ -186,8 +189,10 @@ fun MainScreen(
                 SurveillanceHud(
                     metrics = metrics,
                     isRoiEditMode = isRoiEditMode,
+                    isTorchActive = isTorchActive,
                     onToggleRoiEdit = { isRoiEditMode = !isRoiEditMode },
-                    onEnterEcoMode = { isOledEcoMode = true }
+                    onEnterEcoMode = { isOledEcoMode = true },
+                    onToggleTorch = { CameraService.toggleTorch() }
                 )
 
                 SurveillanceControls(
@@ -261,8 +266,10 @@ fun MainScreen(
 fun SurveillanceHud(
     metrics: SurveillanceMetrics,
     isRoiEditMode: Boolean,
+    isTorchActive: Boolean,
     onToggleRoiEdit: () -> Unit,
-    onEnterEcoMode: () -> Unit
+    onEnterEcoMode: () -> Unit,
+    onToggleTorch: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -303,6 +310,24 @@ fun SurveillanceHud(
             }
 
             Row {
+                // Botão de Lanterna para iluminação noturna
+                IconButton(
+                    onClick = onToggleTorch,
+                    modifier = Modifier
+                        .background(
+                            if (isTorchActive) Color(0xFFFFEB3B) else SurveillanceCard.copy(alpha = 0.85f),
+                            CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = if (isTorchActive) Icons.Default.FlashOn else Icons.Default.FlashOff,
+                        contentDescription = "Lanterna",
+                        tint = if (isTorchActive) Color.Black else Color.White
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
                 IconButton(
                     onClick = onToggleRoiEdit,
                     modifier = Modifier
@@ -369,29 +394,39 @@ fun SurveillanceHud(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = if (metrics.isBurstMode) "Taxa: ${"%.1f".format(metrics.currentFps)} FPS (BURST VELOCIDADE)" else "Taxa: ${"%.1f".format(metrics.currentFps)} FPS (Eco)",
+                        text = if (metrics.isBurstMode) "Taxa: ${"%.1f".format(metrics.currentFps)} FPS (BURST)" else "Taxa: ${"%.1f".format(metrics.currentFps)} FPS (Eco)",
                         color = if (metrics.isBurstMode) Color(0xFFFFB300) else Color.LightGray,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = if (metrics.isBurstMode) FontWeight.Bold else FontWeight.Normal
                     )
                     Text(
-                        text = if (metrics.isBurstMode) "RASTREAMENTO RÁPIDO!" else if (metrics.isMotionDetected) "MOVIMENTO NA VIA!" else "Via Desimpedida",
+                        text = if (metrics.isBurstMode) "RASTREAMENTO RÁPIDO!" else if (metrics.isMotionDetected) "MOVIMENTO NA VIA!" else "Via / Parado Monitorizado",
                         color = if (metrics.isBurstMode) Color(0xFFFF5252) else if (metrics.isMotionDetected) Color(0xFFFFB300) else Color(0xFF81C784),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
 
-                if (metrics.lastOcrRead.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Último OCR: ${metrics.lastOcrRead}",
-                        color = Color(0xFF80DEEA),
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
+                Spacer(modifier = Modifier.height(4.dp))
+
+                val ocrText = if (metrics.lastOcrRead.isNotEmpty()) metrics.lastOcrRead else "A escanear matrículas (dia/noite)..."
+                Text(
+                    text = "OCR / Leitura: $ocrText",
+                    color = if (metrics.lastOcrRead.contains("28") || metrics.lastOcrRead.contains("VE", ignoreCase = true) || metrics.lastOcrRead.contains("91")) Color(0xFFFFEB3B) else Color(0xFF80DEEA),
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
+                    text = "Modo: Parado (1.5s) + Movimento | Noite Adaptativo",
+                    color = Color.Gray,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
             }
         }
     }

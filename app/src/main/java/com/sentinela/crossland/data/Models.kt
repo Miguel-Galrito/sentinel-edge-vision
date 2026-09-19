@@ -54,7 +54,8 @@ data class LicensePlateResult(
     val normalizedText: String,
     val isExactTarget: Boolean,      // Verdadeiro se for exatamente "28-VE-91"
     val isCloseCandidate: Boolean,   // Verdadeiro se for candidato com alta semelhança Levenshtein
-    val confidence: Float
+    val confidence: Float,
+    val rawReadSnippet: String = ""
 ) : Serializable
 
 /**

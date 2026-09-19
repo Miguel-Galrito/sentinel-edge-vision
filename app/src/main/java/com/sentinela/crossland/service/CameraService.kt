@@ -52,7 +52,23 @@ class CameraService : LifecycleService() {
         private val _metrics = MutableStateFlow(SurveillanceMetrics())
         val metrics: StateFlow<SurveillanceMetrics> = _metrics.asStateFlow()
 
+        private val _isTorchActive = MutableStateFlow(false)
+        val isTorchActive: StateFlow<Boolean> = _isTorchActive.asStateFlow()
+
+        private var activeCamera: androidx.camera.core.Camera? = null
         var previewSurfaceProvider: Preview.SurfaceProvider? = null
+
+        fun toggleTorch() {
+            activeCamera?.let { cam ->
+                val next = !_isTorchActive.value
+                try {
+                    cam.cameraControl.enableTorch(next)
+                    _isTorchActive.value = next
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
 
         fun startSurveillance(context: Context) {
             val intent = Intent(context, CameraService::class.java).apply {
@@ -172,12 +188,21 @@ class CameraService : LifecycleService() {
         }
 
         try {
-            provider.bindToLifecycle(
+            activeCamera = provider.bindToLifecycle(
                 this,
                 cameraSelector,
                 preview,
                 imageAnalysis
             )
+
+            // Ajuste automático de compensação de exposição para ambientes com baixa luminosidade (noite)
+            activeCamera?.let { cam ->
+                val exposure = cam.cameraInfo.exposureState
+                if (exposure.isExposureCompensationSupported) {
+                    val targetComp = (exposure.exposureCompensationRange.upper / 2).coerceAtLeast(1)
+                    cam.cameraControl.setExposureCompensationIndex(targetComp)
+                }
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }

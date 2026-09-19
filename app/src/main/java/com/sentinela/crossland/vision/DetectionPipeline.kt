@@ -51,11 +51,13 @@ class DetectionPipeline(
     private val _metrics = MutableStateFlow(SurveillanceMetrics())
     val metrics: StateFlow<SurveillanceMetrics> = _metrics.asStateFlow()
 
-    // Controle de FPS e Cooldown de alarme
+    // Controle de FPS, Cooldown de alarme e Varredura Periódica de Veículo Parado
     private var frameCount = 0
     private var lastFpsCalculationTime = System.currentTimeMillis()
     private var lastAlarmTriggerTimestamp = 0L
+    private var lastStationaryScanTimestamp = 0L
     private val alarmCooldownMs = 15_000L // 15 segundos entre alarmes repetidos do mesmo veículo
+    private val stationaryScanIntervalMs = 1_500L // A cada 1.5s mesmo parado!
 
     private var isBusyProcessingLevel2 = false
 
@@ -76,11 +78,13 @@ class DetectionPipeline(
         val sensitivity = getSensitivity()
 
         // -------------------------------------------------------------
-        // NÍVEL 1: Motion / Light check (Ultraleve, 3-5 FPS, plano Y)
+        // NÍVEL 1: Motion / Light check (Ultraleve, plano Y)
         // -------------------------------------------------------------
         val motionResult = motionDetector.processFrame(imageProxy, currentRoi, sensitivity)
 
-        if (motionResult.frameSkipped) {
+        val isStationaryScanDue = (currentTime - lastStationaryScanTimestamp) > stationaryScanIntervalMs
+
+        if (motionResult.frameSkipped && !isStationaryScanDue) {
             imageProxy.close()
             return
         }
@@ -91,13 +95,19 @@ class DetectionPipeline(
             isBurstMode = motionResult.isBurstModeActive
         )
 
-        // Se não houver movimento na ROI da estrada, liberta o frame imediatamente (poupança de bateria)
-        if (!motionResult.isMotionDetected) {
+        // Aciona Nível 2 se houver movimento OU se estiver na hora da varredura periódica do veículo parado
+        val shouldRunLevel2 = motionResult.isMotionDetected || isStationaryScanDue
+
+        if (!shouldRunLevel2) {
             imageProxy.close()
             return
         }
 
-        // Se já estivermos a processar um frame pesado de Nível 2 em corrotina, ignora este para não acumular fila
+        if (isStationaryScanDue && !motionResult.isMotionDetected) {
+            lastStationaryScanTimestamp = currentTime
+        }
+
+        // Se já estivermos a processar um frame de Nível 2 em corrotina, ignora este para não acumular fila
         if (isBusyProcessingLevel2) {
             imageProxy.close()
             return
@@ -110,24 +120,29 @@ class DetectionPipeline(
         // -------------------------------------------------------------
         pipelineScope.launch {
             try {
-                // 1. Verificação de Perfil Bicolor Opel Crossland X
+                // 1. Verificação de Perfil Bicolor Opel Crossland X (adaptativo dia/noite)
                 val profileResult = profileAnalyzer.analyzeBicolorProfile(imageProxy, currentRoi)
 
                 // 2. Reconhecimento OCR de Matrícula (ML Kit)
                 val plateResult = plateRecognizer.recognizePlate(imageProxy, currentRoi)
 
-                if (plateResult != null) {
+                if (plateResult != null && plateResult.detectedText.isNotEmpty()) {
                     _metrics.value = _metrics.value.copy(lastOcrRead = plateResult.detectedText)
                 }
 
                 // 3. Regra de Decisão do Alarme Crítico
                 val isTargetPlateFound = plateResult?.isExactTarget == true
-                val isStrongCandidate = plateResult?.isCloseCandidate == true && profileResult.isBicolorCandidate
-                val isHighConfidenceProfileWithFragment = profileResult.overallMatchScore > 0.65f &&
-                        (plateResult?.detectedText?.contains("VE", ignoreCase = true) == true ||
-                                plateResult?.detectedText?.contains("91") == true)
+                val isCloseCandidate = plateResult?.isCloseCandidate == true
+                val isBicolor = profileResult.isBicolorCandidate
 
-                val shouldTriggerAlarm = isTargetPlateFound || isStrongCandidate || isHighConfidenceProfileWithFragment
+                val hasPlateFragment = plateResult?.detectedText?.let { text ->
+                    text.contains("28") || text.contains("VE", ignoreCase = true) || text.contains("91")
+                } ?: false
+
+                val shouldTriggerAlarm = isTargetPlateFound ||
+                        (isCloseCandidate && isBicolor) ||
+                        (profileResult.overallMatchScore > 0.65f && hasPlateFragment) ||
+                        (profileResult.overallMatchScore > 0.78f)
 
                 if (shouldTriggerAlarm && (currentTime - lastAlarmTriggerTimestamp > alarmCooldownMs)) {
                     lastAlarmTriggerTimestamp = currentTime

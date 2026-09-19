@@ -61,49 +61,45 @@ class LicensePlateRecognizer {
     ): LicensePlateResult? {
         var bestResult: LicensePlateResult? = null
         var highestScore = 0f
+        var latestAnyTextSnippet = ""
 
         for (block in visionText.textBlocks) {
             for (line in block.lines) {
                 val lineText = line.text.trim()
-                if (lineText.length < 4) continue
-
-                val box = line.boundingBox
-                // Se temos bounding box, verificar se intercepta a ROI da estrada
-                if (box != null) {
-                    val boxCenterX = (box.left + box.right) / (2f * imgWidth)
-                    val boxCenterY = (box.top + box.bottom) / (2f * imgHeight)
-                    if (!roi.contains(boxCenterX, boxCenterY)) {
-                        continue // Fora da ROI de vigilância
-                    }
+                if (lineText.isEmpty()) continue
+                if (latestAnyTextSnippet.isEmpty()) {
+                    latestAnyTextSnippet = lineText
                 }
 
-                // 1. Verificação Regex Exata
+                // 1. Verificação Regex Exata (28-VE-91 em qualquer variação)
                 if (EXACT_REGEX.containsMatchIn(lineText)) {
                     return LicensePlateResult(
                         detectedText = lineText,
                         normalizedText = TARGET_PLATE_DISPLAY,
                         isExactTarget = true,
                         isCloseCandidate = true,
-                        confidence = 1.0f
+                        confidence = 1.0f,
+                        rawReadSnippet = lineText
                     )
                 }
 
-                // 2. Normalização e Levenshtein
+                // 2. Normalização e correspondência canónica
                 val normalized = normalizePlateString(lineText)
 
-                // Substring match
+                // Se o texto normalizado contém 28VE91
                 if (normalized.contains(TARGET_PLATE_CANONICAL)) {
                     return LicensePlateResult(
                         detectedText = lineText,
                         normalizedText = TARGET_PLATE_DISPLAY,
                         isExactTarget = true,
                         isCloseCandidate = true,
-                        confidence = 0.98f
+                        confidence = 0.98f,
+                        rawReadSnippet = lineText
                     )
                 }
 
-                // Comparação de tokens ou janelas deslizantes de 6 caracteres
-                if (normalized.length >= 5) {
+                // Comparação de tokens com distância de Levenshtein
+                if (normalized.length >= 4) {
                     for (i in 0..(normalized.length - 6).coerceAtLeast(0)) {
                         val token = normalized.substring(i, min(i + 6, normalized.length))
                         val distance = levenshteinDistance(token, TARGET_PLATE_CANONICAL)
@@ -120,7 +116,8 @@ class LicensePlateRecognizer {
                                     normalizedText = TARGET_PLATE_DISPLAY,
                                     isExactTarget = isExact,
                                     isCloseCandidate = true,
-                                    confidence = score
+                                    confidence = score,
+                                    rawReadSnippet = lineText
                                 )
                             }
                         }
@@ -129,7 +126,17 @@ class LicensePlateRecognizer {
             }
         }
 
-        return bestResult
+        // Se encontrou candidato, retorna; caso contrário, retorna snippet do que leu para o HUD
+        return bestResult ?: if (latestAnyTextSnippet.isNotEmpty()) {
+            LicensePlateResult(
+                detectedText = latestAnyTextSnippet,
+                normalizedText = "",
+                isExactTarget = false,
+                isCloseCandidate = false,
+                confidence = 0f,
+                rawReadSnippet = latestAnyTextSnippet
+            )
+        } else null
     }
 
     /**
