@@ -364,16 +364,17 @@ fun SurveillanceHud(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Taxa: ${"%.1f".format(metrics.currentFps)} FPS (Nível 1)",
-                        color = Color.LightGray,
+                        text = if (metrics.isBurstMode) "Taxa: ${"%.1f".format(metrics.currentFps)} FPS (BURST VELOCIDADE)" else "Taxa: ${"%.1f".format(metrics.currentFps)} FPS (Eco)",
+                        color = if (metrics.isBurstMode) Color(0xFFFFB300) else Color.LightGray,
                         fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = if (metrics.isBurstMode) FontWeight.Bold else FontWeight.Normal
                     )
                     Text(
-                        text = if (metrics.isMotionDetected) "MOVIMENTO NA VIA!" else "Sem movimento",
-                        color = if (metrics.isMotionDetected) Color(0xFFFFB300) else Color(0xFF81C784),
+                        text = if (metrics.isBurstMode) "RASTREAMENTO RÁPIDO!" else if (metrics.isMotionDetected) "MOVIMENTO NA VIA!" else "Via Desimpedida",
+                        color = if (metrics.isBurstMode) Color(0xFFFF5252) else if (metrics.isMotionDetected) Color(0xFFFFB300) else Color(0xFF81C784),
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Bold
                     )
                 }
 

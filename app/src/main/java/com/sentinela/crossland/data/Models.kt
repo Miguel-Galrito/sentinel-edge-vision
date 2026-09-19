@@ -75,6 +75,7 @@ data class SurveillanceMetrics(
     val currentFps: Float = 0.0f,
     val isMotionDetected: Boolean = false,
     val motionRatio: Float = 0.0f,
+    val isBurstMode: Boolean = false,
     val lastOcrRead: String = "",
     val totalDetectionsCount: Int = 0,
     val isServiceRunning: Boolean = false

@@ -20,14 +20,17 @@ class MotionDetector(
     private val previousGrid = IntArray(totalCells)
     private var hasPreviousFrame = false
 
-    // Throttling de frames: Limita a análise a ~4 FPS (intervalo mínimo de 250ms)
+    // Throttling dinâmico: 250ms (~4 FPS) em repouso; 40ms (~25 FPS - Burst) quando há movimento na via
     private var lastAnalysisTimestamp: Long = 0L
-    private val minFrameIntervalMs: Long = 250L
+    private val idleFrameIntervalMs: Long = 250L
+    private val burstFrameIntervalMs: Long = 40L
+    private var burstModeUntilTimestamp: Long = 0L
 
     data class MotionResult(
         val isMotionDetected: Boolean,
         val changedCellsRatio: Float,
-        val frameSkipped: Boolean
+        val frameSkipped: Boolean,
+        val isBurstModeActive: Boolean = false
     )
 
     /**
@@ -39,8 +42,11 @@ class MotionDetector(
         sensitivityThreshold: Float = 25f
     ): MotionResult {
         val currentTime = System.currentTimeMillis()
-        if (currentTime - lastAnalysisTimestamp < minFrameIntervalMs) {
-            return MotionResult(isMotionDetected = false, changedCellsRatio = 0f, frameSkipped = true)
+        val isBurstActive = currentTime < burstModeUntilTimestamp
+        val requiredInterval = if (isBurstActive) burstFrameIntervalMs else idleFrameIntervalMs
+
+        if (currentTime - lastAnalysisTimestamp < requiredInterval) {
+            return MotionResult(isMotionDetected = false, changedCellsRatio = 0f, frameSkipped = true, isBurstModeActive = isBurstActive)
         }
         lastAnalysisTimestamp = currentTime
 
@@ -116,15 +122,22 @@ class MotionDetector(
         // (evita disparo por insetos ou ruído de sensor < 6%, e ignora mudanças abruptas globais de luz > 75%)
         val isVehicleMotion = changedRatio in 0.06f..0.75f
 
+        if (isVehicleMotion) {
+            // Ativa o modo Burst durante 3.5 segundos para processar o veículo em trânsito a alta velocidade (~25 FPS)
+            burstModeUntilTimestamp = currentTime + 3500L
+        }
+
         return MotionResult(
-            isMotionDetected = isVehicleMotion,
+            isMotionDetected = isVehicleMotion || (currentTime < burstModeUntilTimestamp),
             changedCellsRatio = changedRatio,
-            frameSkipped = false
+            frameSkipped = false,
+            isBurstModeActive = currentTime < burstModeUntilTimestamp
         )
     }
 
     fun reset() {
         hasPreviousFrame = false
         lastAnalysisTimestamp = 0L
+        burstModeUntilTimestamp = 0L
     }
 }

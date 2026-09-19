@@ -87,7 +87,8 @@ class DetectionPipeline(
 
         _metrics.value = _metrics.value.copy(
             isMotionDetected = motionResult.isMotionDetected,
-            motionRatio = motionResult.changedCellsRatio
+            motionRatio = motionResult.changedCellsRatio,
+            isBurstMode = motionResult.isBurstModeActive
         )
 
         // Se não houver movimento na ROI da estrada, liberta o frame imediatamente (poupança de bateria)
