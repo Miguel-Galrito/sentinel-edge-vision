@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.SentinelaCrossland" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@color/black</item>
+        <item name="android:navigationBarColor">@color/black</item>
+    </style>
+
+    <style name="Theme.SentinelaCrossland.Alarm" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/alarm_red_dark</item>
+        <item name="android:statusBarColor">@color/alarm_red_dark</item>
+        <item name="android:navigationBarColor">@color/black</item>
+        <item name="android:showWhenLocked">true</item>
+        <item name="android:turnScreenOn">true</item>
+        <item name="android:keepScreenOn">true</item>
+    </style>
+</resources>

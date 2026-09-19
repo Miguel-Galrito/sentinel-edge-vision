@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="alarm_red">#FFE53935</color>
+    <color name="alarm_red_dark">#FFB71C1C</color>
+    <color name="alarm_amber">#FFFFB300</color>
+    <color name="surveillance_green">#FF00E676</color>
+    <color name="surveillance_dark">#FF121212</color>
+    <color name="surveillance_surface">#FF1E1E1E</color>
+    <color name="opel_grey">#FFB0BEC5</color>
+    <color name="opel_roof_black">#FF212121</color>
+</resources>

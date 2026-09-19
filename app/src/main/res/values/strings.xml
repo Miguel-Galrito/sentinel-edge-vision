@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Sentinela Crossland</string>
+    <string name="target_vehicle">Opel Crossland X</string>
+    <string name="target_plate">28-VE-91</string>
+    <string name="alarm_title">ALERTA: OPEL CROSSLAND DETETADO</string>
+    <string name="alarm_subtitle">Matrícula: 28-VE-91 | Visto na via</string>
+    <string name="stop_alarm">DESLIGAR ALARME</string>
+    <string name="service_running_title">Sentinela em Vigilância Ativa</string>
+    <string name="service_running_desc">A monitorizar a estrada na janela (baixo consumo).</string>
+    <string name="channel_alarm_name">Alertas de Deteção de Veículo</string>
+    <string name="channel_alarm_desc">Notificações críticas de deteção com som e ecrã de chamada.</string>
+    <string name="channel_service_name">Serviço de Vigilância Contínua</string>
+    <string name="channel_service_desc">Notificação persistente da câmara e processamento local.</string>
+</resources>
