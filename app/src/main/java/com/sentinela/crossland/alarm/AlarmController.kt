@@ -20,10 +20,15 @@ class AlarmController private constructor(private val context: Context) {
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
     private val notificationHelper = NotificationHelper(context)
+    private val appPreferences = com.sentinela.crossland.data.AppPreferences(context)
 
     private var mediaPlayer: MediaPlayer? = null
     private var vibrator: Vibrator? = null
     private var alarmWakeLock: PowerManager.WakeLock? = null
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val autoStopRunnable = Runnable {
+        stopAlarm()
+    }
 
     private val _isAlarmActive = MutableStateFlow(false)
     val isAlarmActive: StateFlow<Boolean> = _isAlarmActive.asStateFlow()
@@ -59,10 +64,17 @@ class AlarmController private constructor(private val context: Context) {
 
     /**
      * Dispara o alarme em alta prioridade (Áudio no volume máximo + Vibração insistente + FullScreenIntent).
+     * No Modo Calibração ou Snooze, NÃO emite som nem vibração.
      */
     @Synchronized
     fun triggerAlarm(event: TargetDetectionEvent) {
         _currentEvent.value = event
+
+        // Se o Modo Calibração estiver ativo ou estiver em Pausa/Snooze, silenciar completamente
+        if (appPreferences.isCalibrationMode || !appPreferences.isAudioAlarmEnabled || appPreferences.isSnoozed()) {
+            return
+        }
+
         _isAlarmActive.value = true
 
         // 1. Acorda o processador e o ecrã com WakeLock temporário
@@ -89,6 +101,10 @@ class AlarmController private constructor(private val context: Context) {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+
+        // 6. Agenda auto-timeout de segurança (30s) para não tocar indefinidamente se o telemóvel estiver sem vigilância
+        mainHandler.removeCallbacks(autoStopRunnable)
+        mainHandler.postDelayed(autoStopRunnable, 30_000L)
     }
 
     private fun playAlarmAudio() {
@@ -143,12 +159,18 @@ class AlarmController private constructor(private val context: Context) {
      */
     @Synchronized
     fun stopAlarm() {
+        mainHandler.removeCallbacks(autoStopRunnable)
         stopAudio()
         stopVibration()
         releaseAlarmWakeLock()
         notificationHelper.cancelAlarmNotification()
         _isAlarmActive.value = false
         _currentEvent.value = null
+        try {
+            com.sentinela.crossland.service.CameraService.resetCooldown()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun stopAudio() {

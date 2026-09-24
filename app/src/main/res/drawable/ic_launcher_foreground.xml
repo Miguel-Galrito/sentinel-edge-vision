@@ -3,10 +3,38 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Retículo de mira exterior (Cantos Bracket L) -->
+    <path
+        android:strokeColor="#00E676"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="square"
+        android:pathData="M32,40 V32 H40 M68,32 H76 V40 M76,68 V76 H68 M40,76 H32 V68"/>
+
+    <!-- Anel de abertura da lente ótica / radar -->
+    <path
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="1.8"
+        android:pathData="M54,54m-18,0a18,18 0,1 1,36 0a18,18 0,1 1,-36 0"/>
+
+    <!-- Lâminas da lente geométrica -->
     <path
         android:fillColor="#00E676"
-        android:pathData="M54,20A34,34 0,1 0,88 54,34 34,0 0,0 54,20ZM54,80A26,26 0,1 1,80 54,26 26,0 0,1 54,80Z"/>
+        android:pathData="M54,42L59,48L53,49Z M66,54L60,59L59,53Z M54,66L49,60L55,59Z M42,54L48,49L49,55Z"/>
+
+    <!-- Ponto central de fixação de alvo (Sensor Core) -->
+    <path
+        android:fillColor="#00E676"
+        android:pathData="M54,54m-4.5,0a4.5,4.5 0,1 1,9 0a4.5,4.5 0,1 1,-9 0"/>
+
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M42,46L48,46L51,40L57,40L60,46L66,46A4,4 0,0 1,70 50L70,64A4,4 0,0 1,66 68L42,68A4,4 0,0 1,38 64L38,50A4,4 0,0 1,42 46ZM54,65A8,8 0,1 0,46 57,8 8,0 0,0 54,65ZM54,53A4,4 0,1 1,50 57,4 4,0 0,1 54,53Z"/>
+        android:pathData="M54,54m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0"/>
+
+    <!-- Marcadores de calibração milimétrica nos eixos -->
+    <path
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M54,23V27 M54,81V85 M23,54H27 M81,54H85"/>
 </vector>

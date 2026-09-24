@@ -1,15 +1,30 @@
+# Gradle & Build Artifacts
+.gradle/
+build/
+**/build/
+bin/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Android Studio & IDE
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+.idea/
 local.properties
+.DS_Store
+
+# Package Files (APKs and AABs should not be tracked in git repository)
+*.apk
+*.ap_
+*.aab
+*.dex
+
+# Log and temp files
+*.log
+__pycache__/
+*.pyc
+scratch/
+scratch_test.py
+inspect_*.py
+analyze_*.py
+

@@ -1,66 +1,73 @@
 package com.sentinela.crossland
 
+import com.sentinela.crossland.vision.LicensePlateRecognizer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.util.Locale
-import kotlin.math.min
 
 class LicensePlateMatcherTest {
 
-    private val targetCanonical = "28VE91"
-    private val exactRegex = Regex("(?i)28\\s*[-–—.]?\\s*VE\\s*[-–—.]?\\s*91")
-
-    private fun normalizePlateString(raw: String): String {
-        return raw.uppercase(Locale.ROOT)
-            .replace(Regex("[^A-Z0-9]"), "")
-            .replace("2BVE91", targetCanonical)
-            .replace("28UE91", targetCanonical)
-            .replace("28VE9I", targetCanonical)
-            .replace("28VE9L", targetCanonical)
-    }
-
-    private fun levenshteinDistance(s1: String, s2: String): Int {
-        val dp = Array(s1.length + 1) { IntArray(s2.length + 1) }
-        for (i in 0..s1.length) dp[i][0] = i
-        for (j in 0..s2.length) dp[0][j] = j
-
-        for (i in 1..s1.length) {
-            for (j in 1..s2.length) {
-                val cost = if (s1[i - 1] == s2[j - 1]) 0 else 1
-                dp[i][j] = min(
-                    dp[i - 1][j] + 1,
-                    min(dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost)
-                )
-            }
-        }
-        return dp[s1.length][s2.length]
-    }
-
     @Test
-    fun testExactPlateRegex() {
-        assertTrue(exactRegex.containsMatchIn("28-VE-91"))
-        assertTrue(exactRegex.containsMatchIn("28 VE 91"))
-        assertTrue(exactRegex.containsMatchIn("P 28-VE-91"))
-        assertTrue(exactRegex.containsMatchIn("28.VE.91"))
-        assertTrue(exactRegex.containsMatchIn("28–VE–91"))
-    }
-
-    @Test
-    fun testNormalizedLevenshteinCandidate() {
-        val variations = listOf(
+    fun testExactPlateFormats() {
+        val validExacts = listOf(
             "28-VE-91",
             "28 VE 91",
             "28VE91",
-            "28-VE-9I",
-            "2B-VE-91",
-            "28-UE-91"
+            "28.VE.91",
+            "28–VE–91",
+            "P 28-VE-91",
+            "CARRO: 28-VE-91 (PT)"
         )
 
-        for (raw in variations) {
-            val normalized = normalizePlateString(raw)
-            val dist = levenshteinDistance(normalized, targetCanonical)
-            assertTrue("Falha na variação $raw: dist=$dist", dist <= 1)
+        for (input in validExacts) {
+            val result = LicensePlateRecognizer.evaluateText(input)
+            assertNotNull("Deveria reconhecer como exato: $input", result)
+            assertTrue("Deveria ser isExactTarget: $input", result!!.isExactTarget)
+            assertEquals("28-VE-91", result.normalizedText)
+        }
+    }
+
+    @Test
+    fun testCentralPairSingleCharacterErrorTolerated() {
+        // Levenshtein <= 1 APENAS para o par central "VE"
+        val toleratedCentral = listOf(
+            "28-UE-91", // V -> U
+            "28-VF-91", // E -> F
+            "28-TE-91", // V -> T
+            "28-BE-91", // V -> B
+            "28-V-91",  // E em falta (deleção)
+            "28-VIE-91" // I inserido
+        )
+
+        for (input in toleratedCentral) {
+            val result = LicensePlateRecognizer.evaluateText(input)
+            assertNotNull("Deveria aceitar erro de 1 char no par central: $input", result)
+            assertTrue("Deveria ser isCloseCandidate: $input", result!!.isCloseCandidate)
+            assertEquals("28-VE-91", result.normalizedText)
+        }
+    }
+
+    @Test
+    fun testRejectInvalidPrefixOrSuffixStrictly() {
+        // O prefixo tem de ser estritamente 28 e o sufixo 91
+        val strictlyRejected = listOf(
+            "35-VE-91", // Prefixo errado
+            "28-VE-84", // Sufixo errado
+            "12-VE-91", // Prefixo errado
+            "28-VE-11", // Sufixo errado
+            "AA-BB-CC", // Completamente diferente
+            "12-34-56", // Numérica qualquer
+            "OPEL CORSA",
+            "LAPTOP LENOVO",
+            "28-AB-91", // 2 erros no par central ("AB" vs "VE")
+            "91-VE-28"  // Invertido
+        )
+
+        for (input in strictlyRejected) {
+            val result = LicensePlateRecognizer.evaluateText(input)
+            assertNull("Deveria REJEITAR categoricamente: $input", result)
         }
     }
 }

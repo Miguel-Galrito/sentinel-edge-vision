@@ -45,6 +45,8 @@ class CameraService : LifecycleService() {
     companion object {
         const val ACTION_START_SURVEILLANCE = "ACTION_START_SURVEILLANCE"
         const val ACTION_STOP_SURVEILLANCE = "ACTION_STOP_SURVEILLANCE"
+        const val ACTION_PAUSE_10_MIN = "ACTION_PAUSE_10_MIN"
+        const val ACTION_RESUME_SURVEILLANCE = "ACTION_RESUME_SURVEILLANCE"
 
         private val _isServiceRunning = MutableStateFlow(false)
         val isServiceRunning: StateFlow<Boolean> = _isServiceRunning.asStateFlow()
@@ -57,6 +59,13 @@ class CameraService : LifecycleService() {
 
         private var activeCamera: androidx.camera.core.Camera? = null
         var previewSurfaceProvider: Preview.SurfaceProvider? = null
+
+        @Volatile
+        private var instance: CameraService? = null
+
+        fun resetCooldown() {
+            instance?.detectionPipeline?.resetAlarmCooldown()
+        }
 
         fun toggleTorch() {
             activeCamera?.let { cam ->
@@ -83,10 +92,25 @@ class CameraService : LifecycleService() {
             }
             context.startService(intent)
         }
+
+        fun pauseSurveillance(context: Context, minutes: Int = 10) {
+            val intent = Intent(context, CameraService::class.java).apply {
+                action = ACTION_PAUSE_10_MIN
+            }
+            context.startService(intent)
+        }
+
+        fun resumeSurveillance(context: Context) {
+            val intent = Intent(context, CameraService::class.java).apply {
+                action = ACTION_RESUME_SURVEILLANCE
+            }
+            context.startService(intent)
+        }
     }
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         appPreferences = AppPreferences(this)
         notificationHelper = NotificationHelper(this)
         alarmController = AlarmController.getInstance(this)
@@ -99,7 +123,22 @@ class CameraService : LifecycleService() {
 
         when (intent?.action) {
             ACTION_STOP_SURVEILLANCE -> {
+                alarmController.stopAlarm()
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                notificationHelper.cancelServiceNotification()
+                notificationHelper.cancelAlarmNotification()
                 stopSelf()
+                return START_NOT_STICKY
+            }
+            ACTION_PAUSE_10_MIN -> {
+                appPreferences.snoozeForMinutes(10)
+                alarmController.stopAlarm()
+                notificationHelper.updateServiceNotification(isPaused = true, pauseMinutesRemaining = 10)
+                return START_NOT_STICKY
+            }
+            ACTION_RESUME_SURVEILLANCE -> {
+                appPreferences.clearSnooze()
+                notificationHelper.updateServiceNotification(isPaused = false)
                 return START_NOT_STICKY
             }
             ACTION_START_SURVEILLANCE, null -> {
@@ -108,7 +147,23 @@ class CameraService : LifecycleService() {
             }
         }
 
-        return START_STICKY
+        return START_NOT_STICKY
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        // Encerramento garantido: se o utilizador fechar a app na RAM/Recents, liberta câmara, desliga alarme e encerra o serviço
+        try {
+            alarmController.stopAlarm()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            notificationHelper.cancelServiceNotification()
+            notificationHelper.cancelAlarmNotification()
+            cameraProvider?.unbindAll()
+            releaseWakeLock()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        stopSelf()
     }
 
     private fun startForegroundWithNotification() {
@@ -134,13 +189,20 @@ class CameraService : LifecycleService() {
         detectionPipeline = DetectionPipeline(
             context = this,
             getRoi = { appPreferences.roi },
-            getSensitivity = { appPreferences.motionSensitivity }
+            getSensitivity = { appPreferences.motionSensitivity },
+            getCooldownSeconds = { appPreferences.alarmCooldownSeconds },
+            isCalibrationMode = { appPreferences.isCalibrationMode },
+            isSnoozed = { appPreferences.isSnoozed() }
         )
 
         // Observa métricas do pipeline e repassa para a UI
         lifecycleScope.launch(Dispatchers.Default) {
             detectionPipeline?.metrics?.collect { currentMetrics ->
-                _metrics.value = currentMetrics.copy(isServiceRunning = true)
+                _metrics.value = currentMetrics.copy(
+                    isServiceRunning = true,
+                    isCalibrationActive = appPreferences.isCalibrationMode,
+                    isSnoozedActive = appPreferences.isSnoozed()
+                )
             }
         }
 
@@ -148,7 +210,10 @@ class CameraService : LifecycleService() {
         lifecycleScope.launch(Dispatchers.Main) {
             detectionPipeline?.detectionEvents?.collect { event ->
                 appPreferences.incrementDetections()
-                alarmController.triggerAlarm(event)
+                // Se estiver em modo calibração ou em pausa, o alarme não dispara som/vibração
+                if (!appPreferences.isCalibrationMode && !appPreferences.isSnoozed()) {
+                    alarmController.triggerAlarm(event)
+                }
             }
         }
 
@@ -229,8 +294,16 @@ class CameraService : LifecycleService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        try {
+            alarmController.stopAlarm()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            notificationHelper.cancelServiceNotification()
+            notificationHelper.cancelAlarmNotification()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         _isServiceRunning.value = false
-        _metrics.value = _metrics.value.copy(isServiceRunning = false)
+        _metrics.value = _metrics.value.copy(isServiceRunning = false, detectedVehicles = emptyList())
 
         detectionPipeline?.release()
         detectionPipeline = null
@@ -239,5 +312,6 @@ class CameraService : LifecycleService() {
         cameraExecutor.shutdown()
 
         releaseWakeLock()
+        instance = null
     }
 }

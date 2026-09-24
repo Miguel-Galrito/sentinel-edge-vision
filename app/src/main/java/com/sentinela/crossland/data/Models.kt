@@ -37,24 +37,39 @@ data class NormalizedRect(
 }
 
 /**
+ * Caixa delimitadora normalizada de um veículo localizado no frame da câmara.
+ */
+data class DetectedVehicleBox(
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float,
+    val isTargetOpel: Boolean,
+    val matchScore: Float,
+    val label: String
+) : Serializable
+
+/**
  * Resultado da análise de perfil do veículo (Opel Crossland X Bicolor).
  */
 data class VehicleProfileResult(
     val isBicolorCandidate: Boolean,
     val upperRoofDarkScore: Float,   // Proporção de escuridão no tejadilho/pilares (0.0 a 1.0)
     val lowerBodyGreyScore: Float,   // Proporção de cinzento claro na carroçaria (0.0 a 1.0)
-    val overallMatchScore: Float     // Pontuação composta (0.0 a 1.0)
+    val contrastRatio: Float = 1.0f, // Rácio de luminância carroçaria / tejadilho
+    val overallMatchScore: Float,    // Pontuação composta (0.0 a 1.0)
+    val isVehicleDetected: Boolean = true
 ) : Serializable
 
 /**
  * Resultado do reconhecimento ótico de caracteres (OCR) da matrícula.
  */
 data class LicensePlateResult(
-    val detectedText: String,
-    val normalizedText: String,
-    val isExactTarget: Boolean,      // Verdadeiro se for exatamente "28-VE-91"
-    val isCloseCandidate: Boolean,   // Verdadeiro se for candidato com alta semelhança Levenshtein
-    val confidence: Float,
+    val detectedText: String = "OPEL CROSSLAND X",
+    val normalizedText: String = "CROSSLAND-X",
+    val isExactTarget: Boolean = true,
+    val isCloseCandidate: Boolean = true,
+    val confidence: Float = 1.0f,
     val rawReadSnippet: String = ""
 ) : Serializable
 
@@ -63,10 +78,47 @@ data class LicensePlateResult(
  */
 data class TargetDetectionEvent(
     val timestamp: Long = System.currentTimeMillis(),
-    val plateResult: LicensePlateResult,
+    val plateResult: LicensePlateResult = LicensePlateResult(),
     val profileResult: VehicleProfileResult,
     val snapshotFilePath: String?,
-    val isHighPriorityAlarm: Boolean
+    val isHighPriorityAlarm: Boolean = true,
+    val vehicleBox: DetectedVehicleBox? = null
+) : Serializable
+
+/**
+ * Estatísticas detalhadas de telemetria e diagnóstico do pipeline.
+ */
+data class TelemetryStats(
+    val preprocessMs: Long = 0L,
+    val classificationMs: Long = 0L,
+    val ocrMs: Long = 0L,
+    val totalLatencyMs: Long = 0L,
+    val thermalStatus: String = "NOMINAL",
+    val memoryUsageMb: Long = 0L,
+    val isOledEcoActive: Boolean = false
+) : Serializable
+
+/**
+ * Estado de validação da evidência capturada (Triagem de falsos positivos).
+ */
+enum class EvidenceStatus : Serializable {
+    UNREVIEWED,
+    CONFIRMED,
+    FALSE_POSITIVE
+}
+
+/**
+ * Registo de auditoria / evidência forense de deteção de veículo.
+ */
+data class DetectionEvidence(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val timestamp: Long = System.currentTimeMillis(),
+    val snapshotFilePath: String?,
+    val detectedPlate: String,
+    val confidence: Float,
+    val profileScore: Float,
+    val status: EvidenceStatus = EvidenceStatus.UNREVIEWED,
+    val notes: String = ""
 ) : Serializable
 
 /**
@@ -79,5 +131,14 @@ data class SurveillanceMetrics(
     val isBurstMode: Boolean = false,
     val lastOcrRead: String = "",
     val totalDetectionsCount: Int = 0,
-    val isServiceRunning: Boolean = false
+    val isServiceRunning: Boolean = false,
+    val targetMatchScore: Float = 0.0f,
+    val detectedVehicles: List<DetectedVehicleBox> = emptyList(),
+    val telemetry: TelemetryStats = TelemetryStats(),
+    val cooldownRemainingSeconds: Int = 0,
+    val isCalibrationActive: Boolean = false,
+    val isSnoozedActive: Boolean = false,
+    val gateStatus: String = ""
 )
+
+

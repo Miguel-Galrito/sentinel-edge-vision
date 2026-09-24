@@ -88,6 +88,9 @@ dependencies {
     // Google ML Kit Text Recognition (On-device OCR)
     implementation("com.google.mlkit:text-recognition:16.0.0")
 
+    // Google ML Kit Image Labeling (On-device Vehicle Verification)
+    implementation("com.google.mlkit:image-labeling:17.0.9")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.0")

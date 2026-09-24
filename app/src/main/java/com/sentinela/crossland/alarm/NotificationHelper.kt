@@ -34,14 +34,14 @@ class NotificationHelper(private val context: Context) {
 
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // 1. Canal do Serviço em Primeiro Plano (Silencioso e discreto)
+            // 1. Canal do Serviço em Primeiro Plano (Visível e afixado na barra superior)
             val serviceChannel = NotificationChannel(
                 CHANNEL_SERVICE_ID,
                 context.getString(R.string.channel_service_name),
-                NotificationManager.IMPORTANCE_LOW
+                NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = context.getString(R.string.channel_service_desc)
-                setShowBadge(false)
+                setShowBadge(true)
             }
             notificationManager.createNotificationChannel(serviceChannel)
 
@@ -81,26 +81,75 @@ class NotificationHelper(private val context: Context) {
     }
 
     /**
-     * Constrói a notificação persistente do Foreground Service.
+     * Constrói a notificação persistente do Foreground Service afixada na barra superior
+     * com ações de Kill-Switch ("Encerrar Serviço") e Snooze ("Silenciar / Pausar 10 min").
      */
-    fun buildServiceNotification(): Notification {
+    fun buildServiceNotification(isPaused: Boolean = false, pauseMinutesRemaining: Int = 0): Notification {
         val openAppIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
-        val pendingIntent = PendingIntent.getActivity(
+        val openAppPendingIntent = PendingIntent.getActivity(
             context, 0, openAppIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Ação 1: Silenciar / Pausar 10 min (ou Retomar)
+        val pauseActionTitle = if (isPaused) {
+            "RETOMAR SENTINELA"
+        } else {
+            "SILENCIAR / PAUSAR 10 MIN"
+        }
+        val pauseActionIntent = Intent(context, com.sentinela.crossland.service.CameraService::class.java).apply {
+            action = if (isPaused) {
+                com.sentinela.crossland.service.CameraService.ACTION_RESUME_SURVEILLANCE
+            } else {
+                com.sentinela.crossland.service.CameraService.ACTION_PAUSE_10_MIN
+            }
+        }
+        val pausePendingIntent = PendingIntent.getService(
+            context, 1, pauseActionIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Ação 2: Kill-Switch Imediato ("Encerrar Serviço")
+        val stopIntent = Intent(context, com.sentinela.crossland.service.CameraService::class.java).apply {
+            action = com.sentinela.crossland.service.CameraService.ACTION_STOP_SURVEILLANCE
+        }
+        val stopPendingIntent = PendingIntent.getService(
+            context, 2, stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val title = if (isPaused) {
+            "⏸️ Sentinela em Pausa ($pauseMinutesRemaining min)"
+        } else {
+            "🛡️ Sentinela Crossland Ativa"
+        }
+
+        val content = if (isPaused) {
+            "Alarmes silenciados temporariamente."
+        } else {
+            "A monitorizar via: Opel Crossland X (28-VE-91)"
+        }
+
         return NotificationCompat.Builder(context, CHANNEL_SERVICE_ID)
             .setSmallIcon(R.drawable.ic_camera_service)
-            .setContentTitle(context.getString(R.string.service_running_title))
-            .setContentText(context.getString(R.string.service_running_desc))
-            .setContentIntent(pendingIntent)
+            .setContentTitle(title)
+            .setContentText(content)
+            .setContentIntent(openAppPendingIntent)
+            .addAction(R.drawable.ic_camera_service, pauseActionTitle, pausePendingIntent)
+            .addAction(R.drawable.ic_camera_service, "ENCERRAR SERVIÇO", stopPendingIntent)
             .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .build()
+    }
+
+    fun updateServiceNotification(isPaused: Boolean = false, pauseMinutesRemaining: Int = 0) {
+        notificationManager.notify(
+            NOTIFICATION_SERVICE_ID,
+            buildServiceNotification(isPaused, pauseMinutesRemaining)
+        )
     }
 
     /**
@@ -125,7 +174,7 @@ class NotificationHelper(private val context: Context) {
             val notification = NotificationCompat.Builder(context, CHANNEL_ALARM_ID)
                 .setSmallIcon(R.drawable.ic_alarm_alert)
                 .setContentTitle(context.getString(R.string.alarm_title))
-                .setContentText("Matrícula: 28-VE-91 | Perfil Bicolor Confirmado")
+                .setContentText("OPEL CROSSLAND X DETETADO (Perfil Bicolor)")
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -139,6 +188,10 @@ class NotificationHelper(private val context: Context) {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    fun cancelServiceNotification() {
+        notificationManager.cancel(NOTIFICATION_SERVICE_ID)
     }
 
     fun cancelAlarmNotification() {

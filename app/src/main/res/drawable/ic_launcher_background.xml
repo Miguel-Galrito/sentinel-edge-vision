@@ -1,0 +1,31 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Fundo preto obsidiana profundo -->
+    <path
+        android:fillColor="#0A0A0C"
+        android:pathData="M0,0h108v108h-108z"/>
+
+    <!-- Grelha de mira cibernética subtil -->
+    <path
+        android:strokeColor="#182230"
+        android:strokeWidth="0.8"
+        android:pathData="M54,0v108M0,54h108"/>
+
+    <path
+        android:strokeColor="#141E28"
+        android:strokeWidth="0.6"
+        android:pathData="M27,0v108M81,0v108M0,27h108M0,81h108"/>
+
+    <!-- Círculo de alcance do radar -->
+    <path
+        android:strokeColor="#1A2838"
+        android:strokeWidth="0.8"
+        android:pathData="M54,54m-42,0a42,42 0,1 1,84 0a42,42 0,1 1,-84 0"/>
+    <path
+        android:strokeColor="#132030"
+        android:strokeWidth="0.6"
+        android:pathData="M54,54m-28,0a28,28 0,1 1,56 0a28,28 0,1 1,-56 0"/>
+</vector>
