@@ -123,26 +123,6 @@ Resultados obtidos com o script de validação [`test_lateral_benchmark.py`](fil
 
 ---
 
-## 🎯 Guia para Entrevistas Técnicas (Aerospace / Software & Edge AI)
-
-> *Notas estruturadas para apresentar e defender este projeto perante recrutadores técnicos e líderes de engenharia (e.g., Arlas Aerotec, CEiiA, AED Cluster, defesa ou visão computacional embarcada).*
-
-### 🎙️ O Elevator Pitch (30 Segundos)
-> *"Desenvolvi o Sentinel Vision: um sistema autónomo de visão computacional embarcada em Android para vigilância tática de vias de trânsito em baixa potência. Face à impossibilidade de ler matrículas de perfil a partir de uma janela elevada, implementei um pipeline hierárquico em 4 portas — desde análise de movimento no plano de luminância em zero-GC até à classificação semântica on-device e biometria radiométrica 3-tier, que utiliza a física de reflexão especular do céu no verniz do tejadilho e proteções SUV. O resultado é latência inferior a 35ms, 100% de precisão no veículo-alvo e zero consumo de bateria em segundo plano."*
-
-### 💡 Tópicos Críticos de Discussão em Entrevista
-
-1. **Porquê um Pipeline Hierárquico Determinístico em vez de um Modelo End-to-End Pesado?**
-   - *Resposta*: Em hardware móvel e sistemas embebidos (como em aviónica ou UAVs), alimentar um modelo YOLO ou transformer com cada frame a 30 FPS saturaria o barramento térmico e esgotaria a bateria em minutos. A abordagem de *Gating* descarta 90% dos frames no Nível 1 (<2ms, plano Y puro) e reserva o poder computacional para os momentos em que há alvos reais na cena.
-2. **Como foi resolvido o problema dos falsos positivos sem recurso a matrículas?**
-   - *Resposta*: Modelando as propriedades radiométricas e físicas do veículo. Um Opel Crossland X Bicolor tem uma morfologia sanduíche: tejadilho preto brilhante (que reflete o azul celeste durante o dia e fica escuro à noite), corpo cinzento acromático e embaladeiras pretas mate. Ao cruzar estas 3 bandas com validação geométrica de *aspect ratio*, foi possível diferenciar o alvo de sedans monótonos prata e de carros pretos com 100% de fiabilidade.
-3. **Engenharia de Software e Tolerância a Falhas**:
-   - Gestão de ciclo de vida reativo com Kotlin Coroutines e StateFlow.
-   - Respeito estrito pelo ecossistema Android: `onBackPressedDispatcher`, encerramento limpo da câmara em `onStop()` para consumo zero de bateria.
-   - Fail-safes de telemetria térmica e de memória em tempo real.
-
----
-
 ## 🛠️ Tecnologias Utilizadas
 
 - **Linguagem**: Kotlin 1.9.22
